@@ -12,27 +12,34 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 
 @Slf4j
-@ConditionalOnProperty(name = "security.saml2.enabled", havingValue = "true")
-public class CustomSaml2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
+@ConditionalOnProperty(value = "stirling-pdf.enterprise-edition.enabled", havingValue = "true")
+public class Saml2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
     @Override
     public void onAuthenticationFailure(
             HttpServletRequest request,
             HttpServletResponse response,
-            AuthenticationException exception)
-            throws IOException {
-        log.error("Authentication error", exception);
+            AuthenticationException exception
+    ) throws IOException {
+        log.error("Error during SAML 2 authentication");
 
         if (exception instanceof Saml2AuthenticationException) {
             Saml2Error error = ((Saml2AuthenticationException) exception).getSaml2Error();
+
+            log.error("Error Code: {}, Description: {}", error.getErrorCode(), error.getDescription());
+
             getRedirectStrategy()
-                    .sendRedirect(request, response, "/login?errorOAuth=" + error.getErrorCode());
+                    .sendRedirect(request, response, "/login?errorSaml=" + error.getErrorCode());
         } else if (exception instanceof ProviderNotFoundException) {
+            log.error(exception.getLocalizedMessage());
             getRedirectStrategy()
                     .sendRedirect(
                             request,
                             response,
-                            "/login?errorOAuth=not_authentication_provider_found");
+                            "/login?errorSaml=no_authentication_provider_found");
+        } else {
+            log.error(exception.getLocalizedMessage());
+            getRedirectStrategy().sendRedirect(request, response, "/login?errorSaml");
         }
     }
 }

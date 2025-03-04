@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.saml.saml2.core.Assertion;
@@ -14,21 +13,15 @@ import org.opensaml.saml.saml2.core.AuthnStatement;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider.ResponseToken;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider.ResponseToken;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
-import stirling.software.SPDF.config.security.UserService;
-import stirling.software.SPDF.model.User;
 
 @Slf4j
-@ConditionalOnProperty(name = "security.saml2.enabled", havingValue = "true")
-public class CustomSaml2ResponseAuthenticationConverter
+@ConditionalOnProperty(name = "stirling-pdf.enterprise-edition.enabled", havingValue = "true")
+public class Saml2ResponseAuthenticationConverter
         implements Converter<ResponseToken, Saml2Authentication> {
 
-    private final UserService userService;
-
-    public CustomSaml2ResponseAuthenticationConverter(UserService userService) {
-        this.userService = userService;
-    }
+//    private final UserService userService;
 
     private Map<String, List<Object>> extractAttributes(Assertion assertion) {
         Map<String, List<Object>> attributes = new HashMap<>();
@@ -76,20 +69,20 @@ public class CustomSaml2ResponseAuthenticationConverter
             userIdentifier = getFirstAttributeValue(attributes, "name");
         } else if (hasAttribute(attributes, "upn")) {
             userIdentifier = getFirstAttributeValue(attributes, "upn");
-        } else if (hasAttribute(attributes, "uid")) {
+        } else if (hasAttribute(attributes, "uid")) { // todo: use to save to DB
             userIdentifier = getFirstAttributeValue(attributes, "uid");
         } else {
             userIdentifier = assertion.getSubject().getNameID().getValue();
         }
 
-        // Rest of your existing code...
-        Optional<User> userOpt = userService.findByUsernameIgnoreCase(userIdentifier);
+        // todo: check if user exists below...
+        // fixme: use SSO ID here not userIdentifier
+//        Optional<User> userOpt = userService.findByUsernameIgnoreCase(userIdentifier);
         SimpleGrantedAuthority simpleGrantedAuthority = new SimpleGrantedAuthority("ROLE_USER");
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            simpleGrantedAuthority =
-                    new SimpleGrantedAuthority(userService.findRole(user).getAuthority());
-        }
+
+//        SimpleGrantedAuthority simpleGrantedAuthority = userOpt.isPresent()
+//                ? new SimpleGrantedAuthority(userService.findRole(user).getAuthority())
+//                : new SimpleGrantedAuthority("ROLE_USER");
 
         List<String> sessionIndexes = new ArrayList<>();
         for (AuthnStatement authnStatement : assertion.getAuthnStatements()) {

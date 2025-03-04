@@ -9,56 +9,41 @@ spring:
     saml2:
       relyingparty:
         registration:
-          stirlingpdf:
+          stirling-pdf:
             entity-id: "authentik"
             signing:
               credentials:
                 - private-key-location: "classpath:private-key.key"
                   certificate-location: "classpath:cert.crt"
             singlelogout:
-              url: "https://authentik.dev.stirlingpdf.com/application/saml/stirlingpdf-dario-saml/slo/binding/post/"
+              url: "https://authentik.dev.stirlingpdf.com/application/saml/stirling-pdf/slo/binding/post/"
               binding: "POST"
               response-url: "{baseUrl}/login"
             assertingparty:
               entity-id: "authentik"
-              metadata-uri: "https://authentik.dev.stirlingpdf.com/api/v3/providers/saml/5/metadata/"
+              metadata-uri: "classpath:metadata/saml_authentik_metadata.xml"
               singlesignon:
-                url: "https://authentik.dev.stirlingpdf.com/application/saml/stirlingpdf-dario-saml/sso/binding/post/"
+                url: "https://authentik.dev.stirlingpdf.com/application/saml/stirling-pdf/sso/binding/post/"
                 binding: "POST"
                 sign-request: false
               verification.credentials:
-                - certificate-location: "classpath:authentik-Self-signed_Certificate_certificate.pem"
+                - certificate-location: "classpath:authentik-Self_Signed_Certificate.pem"
               singlelogout:
-                url: "https://authentik.dev.stirlingpdf.com/application/saml/stirlingpdf-dario-saml/slo/binding/post/"
+                url: "https://authentik.dev.stirlingpdf.com/application/saml/stirling-pdf/slo/binding/post/"
                 binding: "POST"
                 response-url: "{baseUrl}/login"
 
-
-enterprise-edition:
-  enabled: true # set to 'true' to enable enterprise edition
-  key: 3R3T-WFPY-UNRW-LJFA-MMXM-YVJK-WCKY-PCRT
-  sso:
-    enable-saml2: true # Only enabled for paid enterprise clients (enterpriseEdition.enabled must be true)
-    auto-login: true # Enable to auto login to first provided SSO
-    autoCreateUser: true # set to 'true' to allow auto-creation of non-existing users
-    blockRegistration: false # set to 'true' to deny login with SSO without prior registration by an admin
-  custom-metadata:
-    auto-update-metadata: false # set to 'true' to automatically update metadata with below values
-    author: username # supports text such as 'John Doe' or types such as username to autopopulate with user's username
-    creator: Stirling-PDF # supports text such as 'Company-PDF'
-    producer: Stirling-PDF # supports text such as 'Company-PDF'
-
-security:
-  saml2:
-    enabled: true # Only enabled for paid enterprise clients (enterpriseEdition.enabled must be true)
-    provider: Authentik # The name of your Provider
-    autoCreateUser: true # set to 'true' to allow auto-creation of non-existing users
-    blockRegistration: false # set to 'true' to deny login with SSO without prior registration by an admin
-    registrationId: stirlingpdf-dario-saml # The name of your Service Provider (SP) app name. Should match the name in the path for your SSO & SLO URLs
-    idpMetadataUri: https://authentik.dev.stirlingpdf.com/api/v3/providers/saml/5/metadata/ # The uri for your Provider's metadata
-    idpSingleLoginUrl: https://authentik.dev.stirlingpdf.com/application/saml/stirlingpdf-dario-saml/sso/binding/post/ # The URL for initiating SSO. Provided by your Provider
-    idpSingleLogoutUrl: https://authentik.dev.stirlingpdf.com/application/saml/stirlingpdf-dario-saml/slo/binding/post/ # The URL for initiating SLO. Provided by your Provider
-    idpIssuer: 'authentik' # The ID of your Provider
-    idpCert: classpath:authentik-Self-signed_Certificate_certificate.pem # The certificate your Provider will use to authenticate your app's SAML authentication requests. Provided by your Provider
-    privateKey: classpath:private-key.key # Your private key. Generated from your keypair
-    spCert: classpath:cert.crt # Your signing
+stirling-pdf:
+  enterprise-edition:
+    enabled: true # set to 'true' to enable enterprise edition
+    key: 3R3T-WFPY-UNRW-LJFA-MMXM-YVJK-WCKY-PCRT
+    sso:
+      enable-saml2: true # Only enabled for paid enterprise clients (enterpriseEdition.enabled must be true)
+      auto-login: true # Enable to auto login to first provided SSO
+      auto-create-user: true # set to 'true' to allow auto-creation of non-existing users
+      block-registration: false # set to 'true' to deny login with SSO without prior registration by an admin
+    custom-metadata:
+      auto-update-metadata: false # set to 'true' to automatically update metadata with below values
+      author: username # supports text such as 'John Doe' or types such as username to autopopulate with user's username
+      creator: Stirling-PDF # supports text such as 'Company-PDF'
+      producer: Stirling-PDF # supports text such as 'Company-PDF'

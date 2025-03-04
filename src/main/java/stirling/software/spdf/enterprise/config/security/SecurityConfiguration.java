@@ -7,14 +7,13 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.metadata.OpenSaml5MetadataResolver;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
+import org.springframework.security.saml2.provider.service.web.authentication.OpenSaml5AuthenticationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
-import stirling.software.spdf.enterprise.config.sso.CustomSaml2AuthenticationFailureHandler;
-import stirling.software.spdf.enterprise.config.sso.CustomSaml2AuthenticationSuccessHandler;
-import stirling.software.spdf.enterprise.config.sso.CustomSaml2ResponseAuthenticationConverter;
+import stirling.software.spdf.enterprise.config.sso.Saml2AuthenticationFailureHandler;
+import stirling.software.spdf.enterprise.config.sso.Saml2AuthenticationSuccessHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -24,7 +23,7 @@ public class SecurityConfiguration {
     private final RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
 
     @Autowired
-    private final OpenSaml5AuthenticationProvider saml2AuthenticationRequestResolver;
+    private final OpenSaml5AuthenticationRequestResolver saml2AuthenticationRequestResolver;
 
     @Autowired
     private final OpenSaml5MetadataResolver metadataResolver;
@@ -32,22 +31,30 @@ public class SecurityConfiguration {
     @Autowired
     private final OpenSaml5AuthenticationProvider authenticationProvider;
 
+    public SecurityConfiguration(
+            RelyingPartyRegistrationRepository relyingPartyRegistrationRepository,
+            OpenSaml5AuthenticationRequestResolver saml2AuthenticationRequestResolver,
+            OpenSaml5MetadataResolver metadataResolver,
+            OpenSaml5AuthenticationProvider authenticationProvider
+    ) {
+        this.relyingPartyRegistrationRepository = relyingPartyRegistrationRepository;
+        this.saml2AuthenticationRequestResolver = saml2AuthenticationRequestResolver;
+        this.metadataResolver = metadataResolver;
+        this.authenticationProvider = authenticationProvider;
+    }
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable).authorizeHttpRequests(authorize -> authorize.anyRequest()
-                        .authenticated())
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
                 .saml2Login(saml2 ->
                         saml2
-                                .loginPage("/saml2")
+                                .loginPage("/saml2/authenticate/stirling-pdf")
                                 .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
                                 .authenticationManager(new ProviderManager(authenticationProvider))
-                                .successHandler(
-                                        new CustomSaml2AuthenticationSuccessHandler(
-                                                loginAttemptService,
-                                                applicationProperties,
-                                                userService)
-                                )
-                                .failureHandler(new CustomSaml2AuthenticationFailureHandler())
+                                .successHandler(new Saml2AuthenticationSuccessHandler())
+                                .failureHandler(new Saml2AuthenticationFailureHandler())
                                 .authenticationRequestResolver(saml2AuthenticationRequestResolver)
                 )
                 .saml2Logout(logout ->
@@ -56,8 +63,7 @@ public class SecurityConfiguration {
                                 .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
                                 .logoutRequest(Customizer.withDefaults())
                                 .logoutResponse(Customizer.withDefaults())
-                )
-                .addFilter(metadataResolver);
+                );
         return http.build();
     }
 }
