@@ -7,12 +7,10 @@ spring:
   jpa.hibernate.ddl-auto: update
   security:
     saml2:
-      relyingparty:
-        registration:
+      relyingparty.registration:
           stirling-pdf:
             entity-id: "authentik"
-            signing:
-              credentials:
+            signing.credentials:
                 - private-key-location: "classpath:private-key.key"
                   certificate-location: "classpath:cert.crt"
             singlelogout:

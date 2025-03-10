@@ -1,55 +1,38 @@
 package stirling.software.spdf.enterprise.config.sso;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyProperties;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.concurrent.ConcurrentMapCacheFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.authentication.AbstractSaml2AuthenticationRequest;
 import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider;
-import org.springframework.security.saml2.provider.service.metadata.OpenSaml5MetadataResolver;
-import org.springframework.security.saml2.provider.service.registration.CachingRelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.InMemoryRelyingPartyRegistrationRepository;
-import org.springframework.security.saml2.provider.service.registration.IterableRelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 import org.springframework.security.saml2.provider.service.web.HttpSessionSaml2AuthenticationRequestRepository;
 import org.springframework.security.saml2.provider.service.web.authentication.OpenSaml5AuthenticationRequestResolver;
 import stirling.software.spdf.enterprise.util.CertificateUtil;
+
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.UUID;
 
 @Slf4j
 @Configuration
 @ConditionalOnProperty(value = "stirling-pdf.enterprise-edition.enabled", havingValue = "true")
 public class SAML2Configuration {
 
+    private static final String REGISTRATION_ID = "stirling-pdf";
+
     @Autowired
     private Saml2RelyingPartyProperties saml2Properties;
-
-    @Autowired
-    private final ConcurrentMapCacheFactoryBean registrationsCache;
-
-    @Autowired
-    private final CacheManager cacheManager;
-
-    public SAML2Configuration(ConcurrentMapCacheFactoryBean registrationsCache, CacheManager cacheManager) {
-        this.registrationsCache = registrationsCache;
-        this.cacheManager = cacheManager;
-    }
 
     @Bean
     public OpenSaml5AuthenticationProvider authenticationProvider() {
@@ -60,81 +43,70 @@ public class SAML2Configuration {
     }
 
     @Bean
-    public OpenSaml5MetadataResolver metadataResolver() {
-        return new OpenSaml5MetadataResolver();
-    }
+    public RelyingPartyRegistrationRepository relyingPartyRegistrationRepository() {
+        Saml2RelyingPartyProperties.Registration registration = saml2Properties.getRegistration().get(REGISTRATION_ID);
+        RelyingPartyRegistration.Builder relyingPartyRegistrationBuilder;
 
-    @Bean
-    public RelyingPartyRegistrationRepository relyingPartyRegistrationRepository(CacheManager cacheManager) {
-        Set<Map.Entry<String, Saml2RelyingPartyProperties.Registration>> registrationEntries = saml2Properties.getRegistration().entrySet();
+        if (registration.getAssertingparty().getMetadataUri() != null) {
+            relyingPartyRegistrationBuilder = RelyingPartyRegistrations.fromMetadataLocation(registration.getAssertingparty().getMetadataUri())
+                    .registrationId(REGISTRATION_ID);
+        } else {
+            relyingPartyRegistrationBuilder = RelyingPartyRegistration.withRegistrationId(REGISTRATION_ID)
+                    .entityId(registration.getEntityId())
+                    .assertingPartyMetadata(metadata -> {
+                        var singlesignon = registration.getAssertingparty().getSinglesignon();
+                        var singlelogout = registration.getAssertingparty().getSinglelogout();
 
-        Callable<IterableRelyingPartyRegistrationRepository> delegate = () -> {
-            List<RelyingPartyRegistration> relyingPartyRegistrations = new ArrayList<>();
+                        metadata.entityId(registration.getEntityId())
+                                .verificationX509Credentials(
+                                        verificationCredentials -> {
+                                            try {
+                                                X509Certificate certificate = CertificateUtil.readCertificate(
+                                                        registration.getAssertingparty()
+                                                                .getVerification()
+                                                                .getCredentials()
+                                                                .get(0)
+                                                                .getCertificateLocation()
+                                                );
+                                                Saml2X509Credential verificationCredential = Saml2X509Credential.verification(certificate);
+                                                verificationCredentials.add(verificationCredential);
+                                            } catch (IOException ioe) {
+                                                log.error("Error while retrieving verification credentials", ioe);
+                                            }
+                                        })
+                                .singleSignOnServiceBinding(singlesignon.getBinding())
+                                .singleSignOnServiceLocation(singlesignon.getUrl())
+                                .singleLogoutServiceBinding(singlelogout.getBinding())
+                                .singleLogoutServiceLocation(singlelogout.getUrl())
+                                .singleLogoutServiceResponseLocation(singlelogout.getResponseUrl());
+                    });
+        }
 
-            registrationEntries.forEach(registrationEntry -> {
-                Saml2RelyingPartyProperties.Registration registrationProperties = registrationEntry.getValue();
+        RelyingPartyRegistration relyingPartyRegistration = relyingPartyRegistrationBuilder
+                .assertionConsumerServiceBinding(registration.getAcs().getBinding())
+                .assertionConsumerServiceLocation(registration.getAcs().getLocation())
+                .singleLogoutServiceBinding(registration.getSinglelogout().getBinding())
+                .singleLogoutServiceLocation(registration.getSinglelogout().getUrl())
+                .singleLogoutServiceResponseLocation(registration.getSinglelogout().getResponseUrl())
+                .signingX509Credentials(signingCredentials -> {
+                    var credential = registration
+                            .getSigning()
+                            .getCredentials()
+                            .get(0);
 
-                RelyingPartyRegistration relyingPartyRegistration = RelyingPartyRegistration
-                        .withRegistrationId(registrationEntry.getKey())
-                        .entityId(registrationProperties.getEntityId())
-                        .assertionConsumerServiceBinding(registrationProperties.getAcs().getBinding())
-                        .assertionConsumerServiceLocation(registrationProperties.getAcs().getLocation())
-                        .singleLogoutServiceBinding(registrationProperties.getSinglelogout().getBinding())
-                        .singleLogoutServiceLocation(registrationProperties.getSinglelogout().getUrl())
-                        .singleLogoutServiceResponseLocation(registrationProperties.getSinglelogout().getResponseUrl())
-                        .signingX509Credentials(signingCredentials -> {
-                            var credential = registrationProperties
-                                    .getSigning()
-                                    .getCredentials()
-                                    .get(0);
-
-                            try {
-                                Saml2X509Credential saml2X509Credential = Saml2X509Credential.signing(
-                                        CertificateUtil.readPrivateKey(credential.getPrivateKeyLocation()),
-                                        CertificateUtil.readCertificate(credential.getCertificateLocation()
+                    try {
+                        Saml2X509Credential saml2X509Credential = Saml2X509Credential.signing(
+                                CertificateUtil.readPrivateKey(credential.getPrivateKeyLocation()),
+                                CertificateUtil.readCertificate(credential.getCertificateLocation()
                                 ));
 
-                                signingCredentials.add(saml2X509Credential);
-                            } catch (IOException ioe) {
-                                log.error("Error while retrieving signing credentials", ioe);
-                            }
-                        })
-                        .assertingPartyMetadata(metadata -> {
-                            var singlesignon = registrationProperties.getAssertingparty().getSinglesignon();
-                            var singlelogout = registrationProperties.getAssertingparty().getSinglelogout();
-
-                            metadata.entityId(registrationProperties.getEntityId())
-                                    .verificationX509Credentials(
-                                            verificationCredentials -> {
-                                                try {
-                                                    X509Certificate certificate = CertificateUtil.readCertificate(registrationProperties.getAssertingparty().getVerification().getCredentials().get(0).getCertificateLocation());
-                                                    Saml2X509Credential verificationCredential = Saml2X509Credential.verification(certificate);
-                                                    verificationCredentials.add(verificationCredential);
-                                                } catch (IOException ioe) {
-                                                    log.error("Error while retrieving signing credentials", ioe);
-                                                }
-                                            })
-                                    .singleSignOnServiceBinding(singlesignon.getBinding())
-                                    .singleSignOnServiceLocation(singlesignon.getUrl())
-                                    .singleLogoutServiceBinding(singlelogout.getBinding())
-                                    .singleLogoutServiceLocation(singlelogout.getUrl())
-                                    .singleLogoutServiceResponseLocation(singlelogout.getResponseUrl());
-//                                    .wantAuthnRequestsSigned(singlesignon.isSignRequest());
-                        })
-//                        .authnRequestsSigned(false)
-                        .build();
-
-                relyingPartyRegistrations.add(relyingPartyRegistration);
-            });
-
-            return new InMemoryRelyingPartyRegistrationRepository(relyingPartyRegistrations);
-        };
-
-        CachingRelyingPartyRegistrationRepository registrations =
-                new CachingRelyingPartyRegistrationRepository(delegate);
-        registrations.setCache(cacheManager.getCache("relying-party-registrations-cache"));
-
-        return registrations;
+                        signingCredentials.add(saml2X509Credential);
+                    } catch (IOException ioe) {
+                        log.error("Error while retrieving signing credentials", ioe);
+                    }
+                })
+                .build();
+        return new InMemoryRelyingPartyRegistrationRepository(relyingPartyRegistration);
     }
 
     @Bean
@@ -184,7 +156,7 @@ public class SAML2Configuration {
         String message =
                 """
                         AuthnRequest:
-
+                        
                         ID: {}
                         Issuer: {}
                         IssueInstant: {}
@@ -215,9 +187,9 @@ public class SAML2Configuration {
                         Request Path: {}
                         Query String: {}
                         Remote Address: {}
-
+                        
                         SAML Request Parameters:
-
+                        
                         SAMLRequest: {}
                         RelayState: {}
                         """;
