@@ -1,4 +1,4 @@
-package stirling.software.spdf.enterprise.config.sso;
+package stirling.software.spdf.enterprise.config.security.sso;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -100,11 +100,17 @@ public class Saml2ResponseAuthenticationConverter
     }
 
     private boolean hasAttribute(Map<String, List<Object>> attributes, String name) {
-        return attributes.containsKey(name) && !attributes.get(name).isEmpty();
+        if (attributes.containsKey(name)) {
+            List<Object> values = attributes.get(name);
+            return values != null && !values.isEmpty();
+        }
+
+        return false;
     }
 
     private String getFirstAttributeValue(Map<String, List<Object>> attributes, String name) {
-        List<Object> values = attributes.get(name);
-        return values != null && !values.isEmpty() ? values.get(0).toString() : null;
+        return attributes.get(name)
+                .get(0)
+                .toString();
     }
 }

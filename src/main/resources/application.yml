@@ -11,8 +11,8 @@ spring:
           stirling-pdf:
             entity-id: "authentik"
             signing.credentials:
-                - private-key-location: "classpath:private-key.key"
-                  certificate-location: "classpath:cert.crt"
+                - private-key-location: "classpath:credentials/private-key.key"
+                  certificate-location: "classpath:credentials/cert.crt"
             singlelogout:
               url: "https://authentik.dev.stirlingpdf.com/application/saml/stirling-pdf/slo/binding/post/"
               binding: "POST"
@@ -25,7 +25,7 @@ spring:
                 binding: "POST"
                 sign-request: false
               verification.credentials:
-                - certificate-location: "classpath:authentik-Self_Signed_Certificate.pem"
+                - certificate-location: "classpath:credentials/authentik-Self_Signed_Certificate.pem"
               singlelogout:
                 url: "https://authentik.dev.stirlingpdf.com/application/saml/stirling-pdf/slo/binding/post/"
                 binding: "POST"

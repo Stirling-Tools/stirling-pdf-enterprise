@@ -1,4 +1,4 @@
-package stirling.software.spdf.enterprise.config.sso;
+package stirling.software.spdf.enterprise.config.security.sso;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

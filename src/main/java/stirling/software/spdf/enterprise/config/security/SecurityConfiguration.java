@@ -10,8 +10,8 @@ import org.springframework.security.saml2.provider.service.authentication.OpenSa
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.web.authentication.OpenSaml5AuthenticationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
-import stirling.software.spdf.enterprise.config.sso.Saml2AuthenticationFailureHandler;
-import stirling.software.spdf.enterprise.config.sso.Saml2AuthenticationSuccessHandler;
+import stirling.software.spdf.enterprise.config.security.sso.Saml2AuthenticationFailureHandler;
+import stirling.software.spdf.enterprise.config.security.sso.Saml2AuthenticationSuccessHandler;
 
 @Configuration
 @EnableWebSecurity

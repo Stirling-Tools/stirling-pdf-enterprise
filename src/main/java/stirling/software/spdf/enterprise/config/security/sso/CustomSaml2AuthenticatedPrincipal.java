@@ -1,4 +1,4 @@
-package stirling.software.spdf.enterprise.config.sso;
+package stirling.software.spdf.enterprise.config.security.sso;
 
 import java.io.Serializable;
 import java.util.List;

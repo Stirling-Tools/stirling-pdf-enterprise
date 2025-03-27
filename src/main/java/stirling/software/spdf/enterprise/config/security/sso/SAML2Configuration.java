@@ -1,6 +1,10 @@
-package stirling.software.spdf.enterprise.config.sso;
+package stirling.software.spdf.enterprise.config.security.sso;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,17 +21,13 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 import org.springframework.security.saml2.provider.service.web.HttpSessionSaml2AuthenticationRequestRepository;
 import org.springframework.security.saml2.provider.service.web.authentication.OpenSaml5AuthenticationRequestResolver;
+import stirling.software.SPDF.config.security.SAML2ConfigurationInterface;
 import stirling.software.spdf.enterprise.util.CertificateUtil;
-
-import java.io.IOException;
-import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.UUID;
 
 @Slf4j
 @Configuration
 @ConditionalOnProperty(value = "stirling-pdf.enterprise-edition.enabled", havingValue = "true")
-public class SAML2Configuration {
+public class SAML2Configuration implements SAML2ConfigurationInterface {
 
     private static final String REGISTRATION_ID = "stirling-pdf";
 
@@ -35,6 +35,7 @@ public class SAML2Configuration {
     private Saml2RelyingPartyProperties saml2Properties;
 
     @Bean
+    @Override
     public OpenSaml5AuthenticationProvider authenticationProvider() {
         OpenSaml5AuthenticationProvider authenticationProvider = new OpenSaml5AuthenticationProvider();
         authenticationProvider.setResponseAuthenticationConverter(new Saml2ResponseAuthenticationConverter());
@@ -43,7 +44,8 @@ public class SAML2Configuration {
     }
 
     @Bean
-    public RelyingPartyRegistrationRepository relyingPartyRegistrationRepository() {
+    @Override
+    public RelyingPartyRegistrationRepository relyingPartyRegistrations() {
         Saml2RelyingPartyProperties.Registration registration = saml2Properties.getRegistration().get(REGISTRATION_ID);
         RelyingPartyRegistration.Builder relyingPartyRegistrationBuilder;
 
@@ -110,10 +112,10 @@ public class SAML2Configuration {
     }
 
     @Bean
-    public OpenSaml5AuthenticationRequestResolver authenticationRequestResolver(
-            RelyingPartyRegistrationRepository relyingPartyRegistrationRepository) {
+    @Override
+    public OpenSaml5AuthenticationRequestResolver authenticationRequestResolver() {
         OpenSaml5AuthenticationRequestResolver resolver =
-                new OpenSaml5AuthenticationRequestResolver(relyingPartyRegistrationRepository);
+                new OpenSaml5AuthenticationRequestResolver(relyingPartyRegistrations());
 
         resolver.setAuthnRequestCustomizer(
                 customizer -> {
