@@ -1,0 +1,3 @@
+[submodule "Stirling-PDF"]
+	path = Stirling-PDF
+	url = git@github.com:Stirling-Tools/Stirling-PDF.git
